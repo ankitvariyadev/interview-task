@@ -30,9 +30,20 @@ class StoreSubtaskRequest extends FormRequest
      */
     public function rules(): array
     {
+        $task = $this->route('task');
+        $taskId = $task instanceof Task ? $task->id : 0;
+        $subtasksTable = (new Subtask)->getTable();
+
         return [
             'title' => ['required', 'string', 'max:255'],
             'description' => ['nullable', 'string'],
+            'parent_subtask_id' => [
+                'nullable',
+                'integer',
+                Rule::exists($subtasksTable, 'id')->where(
+                    fn ($query) => $query->where('task_id', $taskId)
+                ),
+            ],
             'status' => ['nullable', Rule::enum(TaskStatus::class)],
         ];
     }

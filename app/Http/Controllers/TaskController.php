@@ -68,12 +68,13 @@ class TaskController extends Controller
 
         $task->load([
             'assignedUser:id,name,email',
-            'subtasks' => fn ($query) => $query->latest('id'),
-        ]);
+            'subtasks' => fn ($query) => $query->roots()->latest('id')->with('nestedSubtasks'),
+        ])->loadCount('subtasks');
 
         return view('tasks.show', [
             'isAdmin' => $request->user()->hasRole(Role::Admin->value),
             'statuses' => TaskStatus::cases(),
+            'subtaskOptions' => $this->subtaskOptions($task->subtasks),
             'task' => $task,
         ]);
     }
@@ -133,5 +134,21 @@ class TaskController extends Controller
             ->whereHas('roles', fn ($query) => $query->where('name', Role::User->value))
             ->orderBy('name')
             ->get(['id', 'name', 'email']);
+    }
+
+    /**
+     * @return Collection<int, array{id: int, label: string}>
+     */
+    private function subtaskOptions(Collection $subtasks, int $depth = 0): Collection
+    {
+        return $subtasks->flatMap(function (Subtask $subtask) use ($depth): array {
+            return [
+                [
+                    'id' => $subtask->id,
+                    'label' => str_repeat('-- ', $depth) . $subtask->title,
+                ],
+                ...$this->subtaskOptions($subtask->nestedSubtasks, $depth + 1)->all(),
+            ];
+        })->values();
     }
 }

@@ -23,6 +23,7 @@ class SubtaskFactory extends Factory
     {
         return [
             'task_id' => Task::factory(),
+            'parent_subtask_id' => null,
             'title' => fake()->sentence(4),
             'status' => fake()->randomElement(TaskStatus::values()),
         ];

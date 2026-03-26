@@ -68,7 +68,13 @@ class DatabaseSeeder extends Seeder
                 'user' => $users[0],
                 'subtasks' => [
                     ['title' => 'Create workspace access', 'status' => TaskStatus::Completed],
-                    ['title' => 'Review delivery milestones', 'status' => TaskStatus::Pending],
+                    [
+                        'title' => 'Review delivery milestones',
+                        'status' => TaskStatus::Pending,
+                        'subtasks' => [
+                            ['title' => 'Confirm launch dependencies', 'status' => TaskStatus::Pending],
+                        ],
+                    ],
                 ],
             ],
             [
@@ -101,16 +107,31 @@ class DatabaseSeeder extends Seeder
                 ],
             );
 
-            foreach ($taskBlueprint['subtasks'] as $subtaskBlueprint) {
-                Subtask::query()->updateOrCreate(
-                    [
-                        'task_id' => $task->id,
-                        'title' => $subtaskBlueprint['title'],
-                    ],
-                    [
-                        'status' => $subtaskBlueprint['status']->value,
-                    ],
-                );
+            $this->seedSubtasks($task, $taskBlueprint['subtasks']);
+        }
+    }
+
+    /**
+     * @param  array<int, array{title: string, status: TaskStatus, subtasks?: array<int, array<string, mixed>>}>  $subtaskBlueprints
+     */
+    private function seedSubtasks(Task $task, array $subtaskBlueprints, ?Subtask $parentSubtask = null): void
+    {
+        foreach ($subtaskBlueprints as $subtaskBlueprint) {
+            $subtask = Subtask::query()->updateOrCreate(
+                [
+                    'task_id' => $task->id,
+                    'parent_subtask_id' => $parentSubtask?->id,
+                    'title' => $subtaskBlueprint['title'],
+                ],
+                [
+                    'status' => $subtaskBlueprint['status']->value,
+                ],
+            );
+
+            $nestedSubtasks = $subtaskBlueprint['subtasks'] ?? [];
+
+            if ($nestedSubtasks !== []) {
+                $this->seedSubtasks($task, $nestedSubtasks, $subtask);
             }
         }
     }

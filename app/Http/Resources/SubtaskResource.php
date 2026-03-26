@@ -19,10 +19,12 @@ class SubtaskResource extends JsonResource
         return [
             'id' => $this->id,
             'task_id' => $this->task_id,
+            'parent_subtask_id' => $this->parent_subtask_id,
             'title' => $this->title,
             'description' => $this->description,
             'status' => $this->status->value,
             'status_label' => $this->status->label(),
+            'subtasks' => SubtaskResource::collection($this->whenLoaded('nestedSubtasks')),
             'task' => $this->whenLoaded('task', function (): array {
                 return [
                     'id' => $this->task->id,

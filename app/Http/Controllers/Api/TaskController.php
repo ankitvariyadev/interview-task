@@ -60,7 +60,7 @@ class TaskController extends Controller
 
         $task->load([
             'assignedUser',
-            'subtasks' => fn ($query) => $query->latest('id'),
+            'subtasks' => fn ($query) => $query->roots()->latest('id')->with('nestedSubtasks'),
         ])->loadCount('subtasks');
 
         return TaskResource::make($task);

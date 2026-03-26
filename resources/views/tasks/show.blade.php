@@ -22,7 +22,7 @@
 
                         <div class="flex flex-wrap gap-4 text-sm text-slate-500">
                             <span>Assigned to {{ $task->assignedUser->name }}</span>
-                            <span>{{ $task->subtasks->count() }} subtasks</span>
+                            <span>{{ $task->subtasks_count }} subtasks</span>
                             <span>Updated {{ $task->updated_at->diffForHumans() }}</span>
                         </div>
                     </div>
@@ -51,21 +51,7 @@
 
                 <div class="mt-6 grid gap-4">
                     @forelse ($task->subtasks as $subtask)
-                        <article class="rounded-3xl border border-slate-200/70 bg-slate-50/80 p-5">
-                            <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                                <div>
-                                    <h3 class="text-lg font-semibold text-slate-900">{{ $subtask->title }}</h3>
-                                    @if ($subtask->description)
-                                        <p class="mt-2 text-sm leading-7 text-slate-600">{{ $subtask->description }}</p>
-                                    @endif
-                                </div>
-
-                                <span class="rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em]
-                                    {{ $subtask->status->value === 'completed' ? 'bg-emerald-100 text-emerald-700' : ($subtask->status->value === 'in_progress' ? 'bg-amber-100 text-amber-700' : 'bg-slate-100 text-slate-700') }}">
-                                    {{ $subtask->status->label() }}
-                                </span>
-                            </div>
-                        </article>
+                        @include('tasks.partials.subtask-tree', ['subtask' => $subtask, 'depth' => 0])
                     @empty
                         <div class="rounded-3xl border border-dashed border-slate-300 bg-white p-8 text-center text-sm text-slate-500">
                             No subtasks yet for this task.
@@ -138,6 +124,22 @@
                                 placeholder="Optional context for the subtask"
                             ></textarea>
                         </div>
+
+                        @if ($subtaskOptions->isNotEmpty())
+                            <div class="space-y-2">
+                                <label for="subtask_parent_subtask_id" class="text-sm font-semibold text-slate-700">Parent subtask</label>
+                                <select
+                                    id="subtask_parent_subtask_id"
+                                    name="parent_subtask_id"
+                                    class="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-slate-400"
+                                >
+                                    <option value="">Add directly under task</option>
+                                    @foreach ($subtaskOptions as $option)
+                                        <option value="{{ $option['id'] }}">{{ $option['label'] }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+                        @endif
 
                         <button type="submit" class="w-full rounded-2xl bg-slate-900 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800">
                             Create Subtask

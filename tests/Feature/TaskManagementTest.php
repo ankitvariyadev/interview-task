@@ -131,6 +131,71 @@ it('allows users to update status and create subtasks on assigned tasks', functi
     expect($task->subtasks()->count())->toBe(1);
 });
 
+it('supports unlimited nested subtasks within the same task hierarchy', function () {
+    $user = makeStandardUser();
+    $task = Task::factory()->for($user, 'assignedUser')->pending()->create();
+
+    $rootSubtaskResponse = $this->actingAs($user)
+        ->postJson(route('api.tasks.subtasks.store', $task), [
+            'title' => 'Prepare rollout',
+        ])
+        ->assertCreated()
+        ->assertJsonPath('data.parent_subtask_id', null);
+
+    $rootSubtaskId = $rootSubtaskResponse->json('data.id');
+
+    $childSubtaskResponse = $this->actingAs($user)
+        ->postJson(route('api.tasks.subtasks.store', $task), [
+            'title' => 'Confirm stakeholders',
+            'parent_subtask_id' => $rootSubtaskId,
+        ])
+        ->assertCreated()
+        ->assertJsonPath('data.parent_subtask_id', $rootSubtaskId);
+
+    $childSubtaskId = $childSubtaskResponse->json('data.id');
+
+    $grandchildSubtaskResponse = $this->actingAs($user)
+        ->postJson(route('api.tasks.subtasks.store', $task), [
+            'title' => 'Schedule launch call',
+            'parent_subtask_id' => $childSubtaskId,
+        ])
+        ->assertCreated()
+        ->assertJsonPath('data.parent_subtask_id', $childSubtaskId);
+
+    $grandchildSubtaskId = $grandchildSubtaskResponse->json('data.id');
+
+    $this->actingAs($user)
+        ->getJson(route('api.tasks.show', $task))
+        ->assertSuccessful()
+        ->assertJsonPath('data.subtasks_count', 3)
+        ->assertJsonCount(1, 'data.subtasks')
+        ->assertJsonPath('data.subtasks.0.id', $rootSubtaskId)
+        ->assertJsonPath('data.subtasks.0.parent_subtask_id', null)
+        ->assertJsonCount(1, 'data.subtasks.0.subtasks')
+        ->assertJsonPath('data.subtasks.0.subtasks.0.id', $childSubtaskId)
+        ->assertJsonPath('data.subtasks.0.subtasks.0.parent_subtask_id', $rootSubtaskId)
+        ->assertJsonCount(1, 'data.subtasks.0.subtasks.0.subtasks')
+        ->assertJsonPath('data.subtasks.0.subtasks.0.subtasks.0.id', $grandchildSubtaskId)
+        ->assertJsonPath('data.subtasks.0.subtasks.0.subtasks.0.parent_subtask_id', $childSubtaskId);
+
+    expect($task->subtasks()->count())->toBe(3);
+});
+
+it('rejects nested subtasks when the chosen parent belongs to another task', function () {
+    $user = makeStandardUser();
+    $task = Task::factory()->for($user, 'assignedUser')->pending()->create();
+    $otherTask = Task::factory()->for($user, 'assignedUser')->pending()->create();
+    $otherTaskSubtask = Subtask::factory()->for($otherTask)->create();
+
+    $this->actingAs($user)
+        ->postJson(route('api.tasks.subtasks.store', $task), [
+            'title' => 'Invalid nested subtask',
+            'parent_subtask_id' => $otherTaskSubtask->id,
+        ])
+        ->assertUnprocessable()
+        ->assertJsonValidationErrors('parent_subtask_id');
+});
+
 it('prevents users from managing tasks that are not assigned to them', function () {
     $user = makeStandardUser();
     $otherUser = makeStandardUser();

@@ -11,6 +11,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Subtask extends Model
 {
@@ -22,6 +23,7 @@ class Subtask extends Model
      */
     protected $fillable = [
         'task_id',
+        'parent_subtask_id',
         'title',
         'description',
         'status',
@@ -44,6 +46,22 @@ class Subtask extends Model
     public function task(): BelongsTo
     {
         return $this->belongsTo(Task::class);
+    }
+
+    public function parentSubtask(): BelongsTo
+    {
+        return $this->belongsTo(self::class, 'parent_subtask_id');
+    }
+
+    public function subtasks(): HasMany
+    {
+        return $this->hasMany(self::class, 'parent_subtask_id')
+            ->latest('id');
+    }
+
+    public function nestedSubtasks(): HasMany
+    {
+        return $this->subtasks()->with('nestedSubtasks');
     }
 
     public function scopeVisibleTo(Builder $query, User $user): Builder
@@ -75,5 +93,10 @@ class Subtask extends Model
         }
 
         return $query->where('status', $status->value);
+    }
+
+    public function scopeRoots(Builder $query): Builder
+    {
+        return $query->whereNull('parent_subtask_id');
     }
 }
